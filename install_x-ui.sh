@@ -27,7 +27,7 @@ services:
     volumes:
       - /home/x-ui/db:/etc/x-ui/
       - /home/x-ui/cert:/root/cert/
-      - /acme:/acme/
+      - /home/acme:/acme/
     network_mode: host
     restart: unless-stopped
     container_name: 3x-ui
