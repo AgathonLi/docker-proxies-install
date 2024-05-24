@@ -17,7 +17,6 @@ mkdir -p /home/x-ui/db /home/x-ui/cert
 
 # Create docker-compose.yaml file
 cat << EOF > /home/x-ui/docker-compose.yaml
-version: "3"
 services:
   3x-ui:
     stdin_open: true
