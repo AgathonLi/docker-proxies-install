@@ -250,10 +250,14 @@ configure_socks5() {
   fi
 
   # 使用 sed 命令一次性修改配置文件
-  sed -i "s/#\(.*my_socks5.*\)/\1/" config.yaml
-  sed -i "/addr:/c\  addr: $socks5_addr:$socks5_port" config.yaml
-  sed -i "/username:/c\  username: $socks5_user" config.yaml
-  sed -i "/password:/c\  password: $socks5_pass" config.yaml
+  sed -i '
+    s/#  - name: my_socks5/  - name: my_socks5/; \
+    s/#    type: socks5/    type: socks5/; \
+    s/#    socks5:/    socks5:/; \
+    s/#      addr:/      addr: '$socks5_addr':'$socks5_port'/; \
+    s/#      username:/      username: '$socks5_user'/; \
+    s/#      password:/      password: '$socks5_pass'/ \
+  ' config.yaml
 }
 
 # 修改分流配置
