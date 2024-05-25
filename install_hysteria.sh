@@ -284,7 +284,7 @@ if [ "$modify_routing" = "y" ] || [ "$modify_routing" = "Y" ]; then
       reject_line=$(sed -n '/^ *- reject(geoip:cn)/=' config.yaml)
       insert_line=$((reject_line + 1))
       for i in "${ADDR[@]}"; do
-        sed -i "${insert_line}i${indent}    ${rule_prefix}($i)" config.yaml
+        sed -i "${insert_line}i${indent}${rule_prefix}($i)" config.yaml
         insert_line=$((insert_line + 1))
       done
     fi
