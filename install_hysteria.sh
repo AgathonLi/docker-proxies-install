@@ -1,57 +1,91 @@
 #!/bin/bash
 
-if ! command -v docker &> /dev/null || ! command -v docker-compose &> /dev/null; then
-  echo "Docker 或 Docker Compose 未安装，开始安装..."
-  
-  # 识别当前的 Linux 系统
-  if [ -f /etc/debian_version ]; then
-    echo "检测到 Debian/Ubuntu 系统，安装 Docker..."
-    curl -fsSL https://get.docker.com | sudo bash
-    # 检查 Docker 安装是否成功
-    if ! command -v docker &> /dev/null; then
-      echo "Docker 安装失败，脚本退出"
+# 检查并安装 Docker 和 Docker Compose
+install_docker() {
+  if ! command -v docker &> /dev/null || ! command -v docker-compose &> /dev/null; then
+    echo "Docker 或 Docker Compose 未安装，开始安装..."
+
+    # 获取系统发行版
+    distro=$(cat /etc/os-release | grep ^ID= | cut -d= -f2 | tr -d '"')
+
+    if [ "$distro" == "debian" ] || [ "$distro" == "ubuntu" ]; then
+      echo "检测到 Debian/Ubuntu 系统，安装 Docker..."
+      curl -fsSL https://get.docker.com | sudo bash -s docker
+      sudo apt install -y docker-compose
+    elif [ "$distro" == "alpine" ]; then
+      echo "检测到 Alpine 系统，安装 Docker..."
+      sudo apk add --no-cache docker docker-compose
+      sudo rc-update add docker boot
+      sudo service docker start
+    else
+      echo "不支持的系统: $distro，脚本退出"
       exit 1
     fi
-    # 安装 Docker Compose
-    sudo apt update
-    sudo apt install -y docker-compose
-    # 检查 Docker Compose 安装是否成功
-    if ! command -v docker-compose &> /dev/null; then
-      echo "Docker Compose 安装失败，脚本退出"
-      exit 1
-    fi
-  elif [ -f /etc/alpine-release ]; then
-    echo "检测到 Alpine 系统，安装 Docker..."
-    sudo apk add --no-cache docker docker-compose
-    sudo rc-update add docker boot
-    sudo service docker start
-    # 检查 Docker 安装是否成功
-    if ! command -v docker &> /dev/null; then
-      echo "Docker 安装失败，脚本退出"
-      exit 1
-    fi
-    # 检查 Docker Compose 安装是否成功
-    if ! command -v docker-compose &> /dev/null; then
-      echo "Docker Compose 安装失败，脚本退出"
-      exit 1
-    fi
-  else
-    echo "不支持的系统，脚本退出"
+  fi
+  # 检查 Docker 和 Docker Compose 安装是否成功
+  if ! command -v docker &> /dev/null || ! command -v docker-compose &> /dev/null; then
+    echo "Docker 或 Docker Compose 安装失败，请检查安装日志"
     exit 1
   fi
-else
+
   echo "Docker 和 Docker Compose 已安装"
-fi
+}
 
 # 创建hysteria目录
-mkdir -p /home/hysteria
-cd /home/hysteria
+create_directory() {
+    echo "创建并进入hysteria目录..."
+    mkdir -p /home/hysteria && cd /home/hysteria
+}
 
-# 创建Hysteria的clash proxy配置信息
-cat > proxy.yaml <<EOF
-- {"name": "hysteria-IPv4","type": "hysteria2","server": "server_ipv4","port": server_port,"password": "server_password","sni": "server_domain","alpn": ["h3"],"up": 100,"down": 500}
-- {"name": "hysteria-IPv6","type": "hysteria2","server": "server_ipv6","port": server_port,"password": "server_password","sni": "server_domain","alpn": ["h3"],"up": 100,"down": 500}
-EOF
+# 创建Hysteria目录
+create_directory() {
+    echo "创建并进入hysteria目录..."
+    mkdir -p /home/hysteria && cd /home/hysteria
+}
+
+# 创建Hysteria的客户端配置信息
+create_proxy_config() {
+    echo "创建Hysteria配置信息..."
+    cat > proxy.yaml <<EOF
+    - {"name": "hysteria-IPv4","type": "hysteria2","server": "server_ipv4","port": server_port,"password": "server_password","sni": "server_domain","alpn": ["h3"],"up": 100,"down": 500}
+    - {"name": "hysteria-IPv6","type": "hysteria2","server": "server_ipv6","port": server_port,"password": "server_password","sni": "server_domain","alpn": ["h3"],"up": 100,"down": 500}
+    EOF
+
+    # 自动检测服务器的IPv4地址和IPv6地址,最多重试三次
+    echo "自动检测服务器的IPv4地址和IPv6地址..."
+    retry_times=3
+    for i in $(seq $retry_times); do
+        ipv4_address=$(curl -s http://ipv4.icanhazip.com)
+        if [ $? -eq 0 ]; then
+            break
+        fi
+        echo "获取 IPv4 地址失败, 进行第 ${i} 次重试..."
+        sleep 1
+    done
+
+    if [ $i -eq $retry_times ]; then
+        echo "获取 IPv4 地址失败, 超过最大重试次数" >&2
+        exit 1
+    fi
+
+    for i in $(seq $retry_times); do
+        ipv6_address=$(curl -s http://ipv6.icanhazip.com)
+        if [ $? -eq 0 ]; then
+            break
+        fi
+        echo "获取 IPv6 地址失败, 进行第 ${i} 次重试..."
+        sleep 1
+    done
+
+    if [ $i -eq $retry_times ]; then
+        echo "获取 IPv6 地址失败, 超过最大重试次数" >&2
+        exit 1
+    fi
+    
+    # 替换 proxy.yaml 中的服务器地址
+    sed -i "s/server_ipv4/$ipv4_address/" proxy.yaml
+    sed -i "s/server_ipv6/$ipv6_address/" proxy.yaml
+}
 
 # 创建hysteria配置文件
 cat > config.yaml <<EOF
@@ -62,7 +96,6 @@ acme:
     - your.domain.net
   email: your@email.com
   ca: letsencrypt
-  dir: /home/acme
 
 #tls:
 #  cert: 
@@ -118,16 +151,27 @@ sed -i "s/:443/:$port/" config.yaml
 sed -i "s/server_port/$port/" proxy.yaml
 
 # 设置需要申请证书的域名
-while true; do
+max_retries=3
+retries=0
+
+while [ $retries -lt $max_retries ]; do
   read -p "请输入需要申请证书的域名: " domain
-  if echo "$domain" | grep -Eq "^[a-zA-Z0-9.-]+$"; then
+  if echo "$domain" | grep -Eq "^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,6}$"; then
     sed -i "s/your.domain.net/$domain/" config.yaml
     sed -i "s/server_domain/$domain/" proxy.yaml
+
+    echo "域名设置成功！"
     break
   else
     echo "域名格式不正确，请重新输入。"
+    retries=$((retries+1))
   fi
 done
+
+if [ $retries -eq $max_retries ]; then
+  echo "错误：超过最大尝试次数，请检查域名格式。"
+  exit 1
+fi
 
 # 选择证书获取方式
 echo "请选择证书获取方式:"
@@ -180,6 +224,10 @@ password=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 36 | head -n 1)
 sed -i "s/your_password/$password/" config.yaml
 sed -i "s/server_password/$password/" proxy.yaml
 
+# 设定伪装的域名
+read -p "请输入需要伪装的域名: " masquerade_domain
+sed -i "s/news.ycombinator.com/$masquerade_domain/" config.yaml
+
 # 创建docker compose文件
 cat > docker-compose.yaml <<EOF
 services:
@@ -199,43 +247,30 @@ EOF
 # 运行docker compose
 docker-compose up -d
 
-# 是否修改分流配置
+# 配置 Socks5 分流
+configure_socks5() {
+  # 校验 Socks5 地址和端口
+  if ! echo "$socks5_addr" | grep -Eq "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$" || ! echo "$socks5_port" | grep -Eq "^[1-9][0-9]*$" ; then
+    echo "Socks5 地址或端口格式错误！"
+    exit 1
+  fi
+
+  # 使用 sed 命令一次性修改配置文件
+  sed -i "s/#  - name: my_socks5/  - name: my_socks5/;
+          s/#    type: socks5/    type: socks5/;
+          s/#    socks5:/    socks5:/;
+          s/#      addr:/      addr: $socks5_addr/;
+          s/#      port:/      port: $socks5_port/;
+          s/#      username:/      username: $socks5_user/;
+          s/#      password:/      password: $socks5_pass/" config.yaml
+
+# 修改分流配置
 read -p "是否修改分流配置（y/n）: " modify_routing
 if [ "$modify_routing" = "y" ] || [ "$modify_routing" = "Y" ]; then
   echo "设置全局IPv4或IPv6优先:"
   echo "A. 全局IPv4优先"
   echo "B. 全局IPv6优先"
   read -p "选择 (A/B): " ip_priority
-
-  if [ "$ip_priority" = "B" ] || [ "$ip_priority" = "b" ]; then
-    # 检查 config.yaml 是否存在
-    if [ -f "config.yaml" ]; then
-      echo "找到 config.yaml 文件，正在处理..."
-    
-      # 使用 awk 进行处理
-      awk '
-      BEGIN { v6_first_found=0; v6_first="" }
-      /^outbounds:/ { outbounds=1 }
-      outbounds && /^  - name: v6_first$/ { v6_first_found=1 }
-      v6_first_found && outbounds && !/^  - name: v6_first$/ {
-        v6_first = v6_first $0 "\n";
-        next
-      }
-      v6_first_found && outbounds && /^  - name: v4_first$/ {
-        v6_first = "- name: v6_first\n    type: direct\n    direct:\n      mode: 64\n" v6_first;
-        print v6_first;
-        v6_first_found=0;
-        v6_first=""
-      }
-      { print }
-      ' config.yaml > config_new.yaml && mv config_new.yaml config.yaml
-    
-      echo "处理完成。"
-    else
-      echo "未找到 config.yaml 文件，脚本退出。"
-      exit 1
-    fi
-  fi
 
   if [ "$ip_priority" = "A" ] || [ "$ip_priority" = "a" ]; then
     echo "选择需要修改的分流-IPv4优先模式下:"
@@ -244,77 +279,94 @@ if [ "$modify_routing" = "y" ] || [ "$modify_routing" = "Y" ]; then
     read -p "选择 (A/B): " routing_type
 
     if [ "$routing_type" = "A" ] || [ "$routing_type" = "a" ]; then
-      # 输入需要分流的域名或数据集
       read -p "输入需要分流的域名或数据集，使用GeoIP/GeoSite，用逗号分隔: " domains
       IFS=',' read -ra ADDR <<< "$domains"
+
+      # 找到 - reject(geoip:cn) 行号
+      reject_line=$(sed -n '/^ *- reject(geoip:cn)/=' config.yaml)
+
+      # 在 - reject(geoip:cn) 行后插入新的分流规则
+      insert_line=$((reject_line + 1))
       for i in "${ADDR[@]}"; do
-        echo "    - v6_first($i)" >> config.yaml
+        sed -i "${insert_line}i    - v6_first($i)" config.yaml
+        insert_line=$((insert_line + 1))
       done
+    
     elif [ "$routing_type" = "B" ] || [ "$routing_type" = "b" ]; then
       # 配置Socks5分流
-      sed -i "s/#  - name: my_socks5/  - name: my_socks5/" config.yaml
-      sed -i "s/#    type: socks5/    type: socks5/" config.yaml
-      sed -i "s/#    socks5:/    socks5:/" config.yaml
-      sed -i "s/#      addr:/      addr:/" config.yaml
-      sed -i "s/#      username:/      username:/" config.yaml
-      sed -i "s/#      password:/      password:/" config.yaml
-
       read -p "请输入Socks5分流的地址: " socks5_addr
       read -p "请输入Socks5分流的端口: " socks5_port
       read -p "请输入Socks5分流的用户名: " socks5_user
       read -p "请输入Socks5分流的密码: " socks5_pass
-
-      sed -i "s/socks5_address/$socks5_addr/" config.yaml
-      sed -i "s/socks5_port/$socks5_port/" config.yaml
-      sed -i "s/socks5_username/$socks5_user/" config.yaml
-      sed -i "s/socks5_password/$socks5_pass/" config.yaml
+      configure_socks5
 
       # 输入需要分流的域名或数据集
       read -p "输入需要分流的域名或数据集，使用GeoIP/GeoSite，用逗号分隔: " domains
       IFS=',' read -ra ADDR <<< "$domains"
+
+      # 找到 - reject(geoip:cn) 行号
+      reject_line=$(sed -n '/^ *- reject(geoip:cn)/=' config.yaml)
+
+      # 在 - reject(geoip:cn) 行后插入新的分流规则
+      insert_line=$((reject_line + 1))
       for i in "${ADDR[@]}"; do
-        echo "    - my_socks5($i)" >> config.yaml
+        sed -i "${insert_line}i    - my_socks5($i)" config.yaml
+        insert_line=$((insert_line + 1))
       done
     fi
-  else
+   
+  elif [ "$ip_priority" = "B" ] || [ "$ip_priority" = "b" ]; then
+    sed -i '/^ *- name: v4_first/{
+      :a
+      N
+      /^\ *- name: v6_first\n *- type: direct\n *- direct:\n *- mode: 64$/!ba
+      s/\(.*\)\n\([^]*\)/\2\n\1/
+    }' config.yaml
+  
     echo "选择需要修改的分流-IPv6优先模式下:"
     echo "A. IPv4分流"
     echo "B. Socks5分流"
     read -p "选择 (A/B): " routing_type
 
     if [ "$routing_type" = "A" ] || [ "$routing_type" = "a" ]; then
-      # 输入需要分流的域名或数据集
       read -p "输入需要分流的域名或数据集，使用GeoIP/GeoSite，用逗号分隔: " domains
       IFS=',' read -ra ADDR <<< "$domains"
+
+      # 找到 - reject(geoip:cn) 行号
+      reject_line=$(sed -n '/^ *- reject(geoip:cn)/=' config.yaml)
+
+      # 在 - reject(geoip:cn) 行后插入新的分流规则
+      insert_line=$((reject_line + 1))
       for i in "${ADDR[@]}"; do
-        echo "    - v4_first($i)" >> config.yaml
+        sed -i "${insert_line}i    - v4_first($i)" config.yaml
+        insert_line=$((insert_line + 1))
       done
+    
     elif [ "$routing_type" = "B" ] || [ "$routing_type" = "b" ]; then
       # 配置Socks5分流
-      sed -i "s/#  - name: my_socks5/  - name: my_socks5/" config.yaml
-      sed -i "s/#    type: socks5/    type: socks5/" config.yaml
-      sed -i "s/#    socks5:/    socks5:/" config.yaml
-      sed -i "s/#      addr:/      addr:/" config.yaml
-      sed -i "s/#      username:/      username:/" config.yaml
-      sed -i "s/#      password:/      password:/" config.yaml
-
       read -p "请输入Socks5分流的地址: " socks5_addr
       read -p "请输入Socks5分流的端口: " socks5_port
       read -p "请输入Socks5分流的用户名: " socks5_user
       read -p "请输入Socks5分流的密码: " socks5_pass
-
-      sed -i "s/socks5_address/$socks5_addr/" config.yaml
-      sed -i "s/socks5_port/$socks5_port/" config.yaml
-      sed -i "s/socks5_username/$socks5_user/" config.yaml
-      sed -i "s/socks5_password/$socks5_pass/" config.yaml
+      configure_socks5
 
       # 输入需要分流的域名或数据集
       read -p "输入需要分流的域名或数据集，使用GeoIP/GeoSite，用逗号分隔: " domains
       IFS=',' read -ra ADDR <<< "$domains"
+
+      # 找到 - reject(geoip:cn) 行号
+      reject_line=$(sed -n '/^ *- reject(geoip:cn)/=' config.yaml)
+
+      # 在 - reject(geoip:cn) 行后插入新的分流规则
+      insert_line=$((reject_line + 1))
       for i in "${ADDR[@]}"; do
-        echo "    - my_socks5($i)" >> config.yaml
+        sed -i "${insert_line}i    - my_socks5($i)" config.yaml
+        insert_line=$((insert_line + 1))
       done
     fi
+  else
+    echo "无效的选择."
+    exit 1
   fi
 fi
 
