@@ -22,6 +22,7 @@ install_docker() {
       exit 1
     fi
   fi
+  
   # 检查 Docker 和 Docker Compose 安装是否成功
   if ! command -v docker &> /dev/null || ! command -v docker-compose &> /dev/null; then
     echo "Docker 或 Docker Compose 安装失败，请检查安装日志"
@@ -44,6 +45,11 @@ create_proxy_config() {
     - {"name": "hysteria-IPv4","type": "hysteria2","server": "server_ipv4","port": server_port,"password": "server_password","sni": "server_domain","alpn": ["h3"],"up": 100,"down": 500}
     - {"name": "hysteria-IPv6","type": "hysteria2","server": "server_ipv6","port": server_port,"password": "server_password","sni": "server_domain","alpn": ["h3"],"up": 100,"down": 500}
     EOF
+
+    if [ ! -f "proxy.yaml" ]; then
+        echo "错误: proxy.yaml 文件不存在！"
+        exit 1
+    fi
 
     # 自动检测服务器的IPv4地址和IPv6地址,最多重试三次
     echo "自动检测服务器的IPv4地址和IPv6地址..."
@@ -133,7 +139,7 @@ while true; do
   if [ -z "$port" ]; then
     port=$((RANDOM % 59000 + 1000))
   fi
-  if ! ss -tuln | grep -qw ":$port " ; then
+  if ! nc -z -w 1 localhost "$port" &> /dev/null; then
     break
   else
     echo "端口被占用，请手动关闭后安装"
