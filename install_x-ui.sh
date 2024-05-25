@@ -1,16 +1,35 @@
-#!/bin/sh
+#!/bin/bash
 
-# Update package list
-apk update
+# 检查并安装 Docker 和 Docker Compose
+install_docker() {
+  if ! command -v docker &> /dev/null || ! command -v docker-compose &> /dev/null; then
+    echo "Docker 或 Docker Compose 未安装，开始安装..."
 
-# Install Docker and Docker Compose
-apk add docker docker-compose
+    # 获取系统发行版
+    distro=$(cat /etc/os-release | grep ^ID= | cut -d= -f2 | tr -d '"')
 
-# Add Docker to system startup
-rc-update add docker boot
+    if [ "$distro" == "debian" ] || [ "$distro" == "ubuntu" ]; then
+      echo "检测到 Debian/Ubuntu 系统，安装 Docker..."
+      curl -fsSL https://get.docker.com | sudo bash -s docker
+      sudo apt install -y docker-compose
+    elif [ "$distro" == "alpine" ]; then
+      echo "检测到 Alpine 系统，安装 Docker..."
+      sudo apk add --no-cache docker docker-compose
+      sudo rc-update add docker boot
+      sudo service docker start
+    else
+      echo "不支持的系统: $distro，脚本退出"
+      exit 1
+    fi
+  fi
+  # 检查 Docker 和 Docker Compose 安装是否成功
+  if ! command -v docker &> /dev/null || ! command -v docker-compose &> /dev/null; then
+    echo "Docker 或 Docker Compose 安装失败，请检查安装日志"
+    exit 1
+  fi
 
-# Start Docker service
-service docker start
+  echo "Docker 和 Docker Compose 已安装"
+}
 
 # Create x-ui directory
 mkdir -p /home/x-ui/db /home/x-ui/cert
@@ -39,4 +58,39 @@ cd /home/x-ui
 # Run docker-compose
 docker-compose up -d
 
-echo "x-ui installation complete. Access the web interface at http://[your-server-ip]:2053"
+# 生成x-ui访问地址
+generate_access_address() {
+    # 自动检测服务器的IPv4地址和IPv6地址,最多重试三次
+    echo "自动检测服务器的IPv4地址和IPv6地址..."
+    retry_times=3
+    for i in $(seq $retry_times); do
+        ipv4_address=$(curl -s http://ipv4.icanhazip.com)
+        if [ $? -eq 0 ]; then
+            break
+        fi
+        echo "获取 IPv4 地址失败, 进行第 ${i} 次重试..."
+        sleep 1
+    done
+
+    if [ $i -eq $retry_times ]; then
+        echo "获取 IPv4 地址失败, 超过最大重试次数" >&2
+        exit 1
+    fi
+
+    for i in $(seq $retry_times); do
+        ipv6_address=$(curl -s http://ipv6.icanhazip.com)
+        if [ $? -eq 0 ]; then
+            break
+        fi
+        echo "获取 IPv6 地址失败, 进行第 ${i} 次重试..."
+        sleep 1
+    done
+
+    if [ $i -eq $retry_times ]; then
+        echo "获取 IPv6 地址失败, 超过最大重试次数" >&2
+        exit 1
+    fi
+
+    echo "x-ui安装完成，IPv4访问地址：http://$ipv4_address:2053"
+    echo "x-ui安装完成，IPv6访问地址：http://[$ipv6_address]:2053"
+}
