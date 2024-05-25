@@ -250,15 +250,13 @@ configure_socks5() {
     exit 1
   fi
 
-  # 使用 sed 命令一次性修改配置文件
-  sed -i '
-    s/#  - name: my_socks5/  - name: my_socks5/; \
-    s/#    type: socks5/    type: socks5/; \
-    s/#    socks5:/    socks5:/; \
-    s/#      addr:/      addr: '$socks5_addr':'$socks5_port'/; \
-    s/#      username:/      username: '$socks5_user'/; \
-    s/#      password:/      password: '$socks5_pass'/ \
-  ' config.yaml
+  # 使用 sed 命令修改配置文件
+  sed -i 's/#  - name: my_socks5/  - name: my_socks5/' config.yaml
+  sed -i 's/#    type: socks5/    type: socks5/' config.yaml
+  sed -i 's/#    socks5:/    socks5:/' config.yaml
+  sed -i 's/#      addr:/      addr: '$socks5_addr':'$socks5_port'/' config.yaml
+  sed -i 's/#      username:/      username: '$socks5_user'/' config.yaml
+  sed -i 's/#      password:/      password: '$socks5_pass'/' config.yaml
 }
 
 # 修改分流配置
@@ -272,6 +270,7 @@ if [ "$modify_routing" = "y" ] || [ "$modify_routing" = "Y" ]; then
   # 提取公共代码块到函数
   add_routing_rules() {
     local rule_prefix=$1
+    rule_prefix="    - ${rule_prefix}"
     read -p "是否修改${rule_prefix}分流规则 (Y/N): " modify_rule
     if [[ "$modify_rule" == "y" || "$modify_rule" == "Y" ]]; then
       read -p "输入需要分流的域名或数据集，使用GeoIP/GeoSite，用逗号分隔: " domains
