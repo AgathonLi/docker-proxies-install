@@ -39,8 +39,8 @@ mkdir -p /home/hysteria && cd /home/hysteria
 # 创建Hysteria的客户端配置信息
 echo "创建Hysteria配置信息..."
 cat > proxy.yaml <<EOF
-- {"name": "hysteria-IPv4","type": "hysteria2","server": "server_ipv4","port": server_port,"password": "server_password","sni": "server_domain","alpn": ["h3"],"up": 100,"down": 500}
-- {"name": "hysteria-IPv6","type": "hysteria2","server": "server_ipv6","port": server_port,"password": "server_password","sni": "server_domain","alpn": ["h3"],"up": 100,"down": 500}
+  - {"name": "hysteria-IPv4","type": "hysteria2","server": "server_ipv4","port": server_port,"password": "server_password","sni": "server_domain","alpn": ["h3"],"up": 100,"down": 500}
+  - {"name": "hysteria-IPv6","type": "hysteria2","server": "server_ipv6","port": server_port,"password": "server_password","sni": "server_domain","alpn": ["h3"],"up": 100,"down": 500}
 EOF
 
 if [ ! -f "proxy.yaml" ]; then
@@ -277,13 +277,14 @@ if [ "$modify_routing" = "y" ] || [ "$modify_routing" = "Y" ]; then
       IFS=',' read -ra ADDR <<< "$domains"
 
       # 使用 awk 找到 - reject(geoip:cn) 行的缩进
-      indent=$(awk '/^ *- reject\(geoip:cn\)/ {print $1}' config.yaml)
+      indent=$(awk '/^ *- reject\(geoip:cn\)/ {print gensub(/[^ ].*/, "", 1)}' config.yaml)
 
       # 在 - reject(geoip:cn) 行后插入新的分流规则
       reject_line=$(sed -n '/^ *- reject(geoip:cn)/=' config.yaml)
       insert_line=$((reject_line + 1))
       for i in "${ADDR[@]}"; do
-        sed -i "${insert_line}i${indent}    - ${rule_prefix}($i)" config.yaml
+        # 在这里插入空格和 -
+        sed -i "${insert_line}i${indent}  - ${rule_prefix} ($i)" config.yaml  
         insert_line=$((insert_line + 1))
       done
     fi
