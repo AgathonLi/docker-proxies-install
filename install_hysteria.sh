@@ -256,13 +256,16 @@ configure_socks5() {
   fi
 
   # 使用 sed 命令一次性修改配置文件
-  sed -i "s/#  - name: my_socks5/  - name: my_socks5/;
-          s/#    type: socks5/    type: socks5/;
-          s/#    socks5:/    socks5:/;
-          s/#      addr:/      addr: $socks5_addr/;
-          s/#      port:/      port: $socks5_port/;
-          s/#      username:/      username: $socks5_user/;
-          s/#      password:/      password: $socks5_pass/" config.yaml
+  sed -i '
+    s/#  - name: my_socks5/  - name: my_socks5/
+    s/#    type: socks5/    type: socks5/
+    s/#    socks5:/    socks5:/
+    s/#      addr:/      addr: '$socks5_addr'/
+    s/#      port:/      port: '$socks5_port'/
+    s/#      username:/      username: '$socks5_user'/
+    s/#      password:/      password: '$socks5_pass'/
+  ' config.yaml
+}
 
 # 修改分流配置
 read -p "是否修改分流配置（y/n）: " modify_routing
@@ -272,13 +275,11 @@ if [ "$modify_routing" = "y" ] || [ "$modify_routing" = "Y" ]; then
   echo "B. 全局IPv6优先"
   read -p "选择 (A/B): " ip_priority
 
-  if [ "$ip_priority" = "A" ] || [ "$ip_priority" = "a" ]; then
-    echo "选择需要修改的分流-IPv4优先模式下:"
-    echo "A. IPv6分流"
-    echo "B. Socks5分流"
-    read -p "选择 (A/B): " routing_type
-
-    if [ "$routing_type" = "A" ] || [ "$routing_type" = "a" ]; then
+  # 提取公共代码块到函数
+  add_routing_rules() {
+    local rule_prefix=$1
+    read -p "是否修改${rule_prefix}分流规则 (Y/N): " modify_rule
+    if [[ "$modify_rule" == "y" || "$modify_rule" == "Y" ]]; then
       read -p "输入需要分流的域名或数据集，使用GeoIP/GeoSite，用逗号分隔: " domains
       IFS=',' read -ra ADDR <<< "$domains"
 
@@ -288,33 +289,27 @@ if [ "$modify_routing" = "y" ] || [ "$modify_routing" = "Y" ]; then
       # 在 - reject(geoip:cn) 行后插入新的分流规则
       insert_line=$((reject_line + 1))
       for i in "${ADDR[@]}"; do
-        sed -i "${insert_line}i    - v6_first($i)" config.yaml
+        sed -i "${insert_line}i    - ${rule_prefix}($i)" config.yaml
         insert_line=$((insert_line + 1))
       done
-    
-    elif [ "$routing_type" = "B" ] || [ "$routing_type" = "b" ]; then
-      # 配置Socks5分流
+    fi
+  }
+
+  if [ "$ip_priority" = "A" ] || [ "$ip_priority" = "a" ]; then
+    # IPv4优先
+    echo "IPv6分流"
+    add_routing_rules "v6_first"
+
+    read -p "是否修改Socks5分流规则 (Y/N): " modify_socks5
+    if [[ "$modify_socks5" == "y" || "$modify_socks5" == "Y" ]]; then
       read -p "请输入Socks5分流的地址: " socks5_addr
       read -p "请输入Socks5分流的端口: " socks5_port
       read -p "请输入Socks5分流的用户名: " socks5_user
       read -p "请输入Socks5分流的密码: " socks5_pass
       configure_socks5
-
-      # 输入需要分流的域名或数据集
-      read -p "输入需要分流的域名或数据集，使用GeoIP/GeoSite，用逗号分隔: " domains
-      IFS=',' read -ra ADDR <<< "$domains"
-
-      # 找到 - reject(geoip:cn) 行号
-      reject_line=$(sed -n '/^ *- reject(geoip:cn)/=' config.yaml)
-
-      # 在 - reject(geoip:cn) 行后插入新的分流规则
-      insert_line=$((reject_line + 1))
-      for i in "${ADDR[@]}"; do
-        sed -i "${insert_line}i    - my_socks5($i)" config.yaml
-        insert_line=$((insert_line + 1))
-      done
+      add_routing_rules "my_socks5"
     fi
-   
+  
   elif [ "$ip_priority" = "B" ] || [ "$ip_priority" = "b" ]; then
     sed -i '/^ *- name: v4_first/{
       :a
@@ -323,47 +318,19 @@ if [ "$modify_routing" = "y" ] || [ "$modify_routing" = "Y" ]; then
       s/\(.*\)\n\([^]*\)/\2\n\1/
     }' config.yaml
   
-    echo "选择需要修改的分流-IPv6优先模式下:"
-    echo "A. IPv4分流"
-    echo "B. Socks5分流"
-    read -p "选择 (A/B): " routing_type
+    echo "IPv4分流"
+    add_routing_rules "v4_first"
 
-    if [ "$routing_type" = "A" ] || [ "$routing_type" = "a" ]; then
-      read -p "输入需要分流的域名或数据集，使用GeoIP/GeoSite，用逗号分隔: " domains
-      IFS=',' read -ra ADDR <<< "$domains"
-
-      # 找到 - reject(geoip:cn) 行号
-      reject_line=$(sed -n '/^ *- reject(geoip:cn)/=' config.yaml)
-
-      # 在 - reject(geoip:cn) 行后插入新的分流规则
-      insert_line=$((reject_line + 1))
-      for i in "${ADDR[@]}"; do
-        sed -i "${insert_line}i    - v4_first($i)" config.yaml
-        insert_line=$((insert_line + 1))
-      done
-    
-    elif [ "$routing_type" = "B" ] || [ "$routing_type" = "b" ]; then
-      # 配置Socks5分流
+    read -p "是否修改Socks5分流规则 (Y/N): " modify_socks5
+    if [[ "$modify_socks5" == "y" || "$modify_socks5" == "Y" ]]; then
       read -p "请输入Socks5分流的地址: " socks5_addr
       read -p "请输入Socks5分流的端口: " socks5_port
       read -p "请输入Socks5分流的用户名: " socks5_user
       read -p "请输入Socks5分流的密码: " socks5_pass
       configure_socks5
-
-      # 输入需要分流的域名或数据集
-      read -p "输入需要分流的域名或数据集，使用GeoIP/GeoSite，用逗号分隔: " domains
-      IFS=',' read -ra ADDR <<< "$domains"
-
-      # 找到 - reject(geoip:cn) 行号
-      reject_line=$(sed -n '/^ *- reject(geoip:cn)/=' config.yaml)
-
-      # 在 - reject(geoip:cn) 行后插入新的分流规则
-      insert_line=$((reject_line + 1))
-      for i in "${ADDR[@]}"; do
-        sed -i "${insert_line}i    - my_socks5($i)" config.yaml
-        insert_line=$((insert_line + 1))
-      done
+      add_routing_rules "my_socks5"
     fi
+
   else
     echo "无效的选择."
     exit 1
