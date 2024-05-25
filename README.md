@@ -1,4 +1,8 @@
-## One-click operation
+## 3x-ui
 ```
-bash <(wget -qO- https://raw.githubusercontent.com/AgathonLi/alpine-3x-ui-install/main/install_x-ui.sh)
+bash <(wget -qO- https://raw.githubusercontent.com/AgathonLi/alpine-proxy-install/main/install_x-ui.sh)
+```
+## hysteria
+```
+bash <(wget -qO- https://raw.githubusercontent.com/AgathonLi/alpine-proxy-install/main/install_hysteria.sh)
 ```
