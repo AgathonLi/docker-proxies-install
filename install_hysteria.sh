@@ -31,12 +31,6 @@ install_docker() {
   echo "Docker 和 Docker Compose 已安装"
 }
 
-# 创建hysteria目录
-create_directory() {
-    echo "创建并进入hysteria目录..."
-    mkdir -p /home/hysteria && cd /home/hysteria
-}
-
 # 创建Hysteria目录
 create_directory() {
     echo "创建并进入hysteria目录..."
@@ -139,7 +133,7 @@ while true; do
   if [ -z "$port" ]; then
     port=$((RANDOM % 59000 + 1000))
   fi
-  if ! ss -tuln | grep -q ":$port "; then
+  if ! ss -tuln | grep -qw ":$port " ; then
     break
   else
     echo "端口被占用，请手动关闭后安装"
@@ -256,15 +250,10 @@ configure_socks5() {
   fi
 
   # 使用 sed 命令一次性修改配置文件
-  sed -i '
-    s/#  - name: my_socks5/  - name: my_socks5/
-    s/#    type: socks5/    type: socks5/
-    s/#    socks5:/    socks5:/
-    s/#      addr:/      addr: '$socks5_addr'/
-    s/#      port:/      port: '$socks5_port'/
-    s/#      username:/      username: '$socks5_user'/
-    s/#      password:/      password: '$socks5_pass'/
-  ' config.yaml
+  sed -i "s/#\(.*my_socks5.*\)/\1/" config.yaml
+  sed -i "/addr:/c\  addr: $socks5_addr:$socks5_port" config.yaml
+  sed -i "/username:/c\  username: $socks5_user" config.yaml
+  sed -i "/password:/c\  password: $socks5_pass" config.yaml
 }
 
 # 修改分流配置
