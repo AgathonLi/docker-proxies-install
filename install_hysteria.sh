@@ -255,9 +255,9 @@ configure_socks5() {
     s/#  - name: my_socks5/  - name: my_socks5/; \
     s/#    type: socks5/    type: socks5/; \
     s/#    socks5:/    socks5:/; \
-    s/#      addr:/      addr: '"$socks5_addr"':'"$socks5_port"'/; \
-    s/#      username:/      username: '"$socks5_user"'/; \
-    s/#      password:/      password: '"$socks5_pass"'/ \
+    s/#      addr:/      addr: '$socks5_addr':'$socks5_port'/; \
+    s/#      username:/      username: '$socks5_user'/; \
+    s/#      password:/      password: '$socks5_pass'/ \
   ' config.yaml
 }
 
@@ -284,7 +284,7 @@ if [ "$modify_routing" = "y" ] || [ "$modify_routing" = "Y" ]; then
       reject_line=$(sed -n '/^ *- reject(geoip:cn)/=' config.yaml)
       insert_line=$((reject_line + 1))
       for i in "${ADDR[@]}"; do
-        sed -i "${insert_line}i${indent}    - ${rule_prefix}($i)" config.yaml
+        sed -i "${insert_line}i${indent}    ${rule_prefix}($i)" config.yaml
         insert_line=$((insert_line + 1))
       done
     fi
