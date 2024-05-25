@@ -280,22 +280,22 @@ if [ "$modify_routing" = "y" ] || [ "$modify_routing" = "Y" ]; then
       indent="    " 
 
       # 读取文件内容到变量
-      content=$(cat config.yaml)
+      mapfile -t content < config.yaml
 
       # 逐行处理
-      new_content=""
-      echo "$content" | while IFS= read -r line; do
-        new_content+="$line\n"
-        # 使用正则表达式匹配 "- reject(geoip:cn)"，允许开头和结尾有多个空格
-        if [[ "$line" =~ ^[ ]*-[ ]+reject\(geoip:cn\)$ ]]; then 
+      new_content=()
+      for line in "${content[@]}"; do
+        new_content+=("$line")
+        # 使用 grep 命令判断是否包含 "- reject(geoip:cn)"
+        if echo "$line" | grep -qE "^ *- reject\(geoip:cn\)$"; then
           for i in "${ADDR[@]}"; do
-            new_content+="${indent}- ${rule_prefix}(${i})\n"
+            new_content+=("${indent}- ${rule_prefix}(${i})")
           done
         fi
       done
 
       # 将修改后的内容写入文件
-      echo -e "$new_content" > config.yaml
+      printf "%s\n" "${new_content[@]}" > config.yaml
     fi
   }
 
