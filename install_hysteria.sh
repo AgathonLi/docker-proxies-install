@@ -286,7 +286,8 @@ if [ "$modify_routing" = "y" ] || [ "$modify_routing" = "Y" ]; then
       new_content=""
       echo "$content" | while IFS= read -r line; do
         new_content+="$line\n"
-        if [[ "$line" =~ ^\ *- reject\(geoip:cn\)$ ]]; then
+        # 使用正则表达式匹配 "- reject(geoip:cn)"，允许开头和结尾有多个空格
+        if [[ "$line" =~ ^[ ]*-[ ]+reject\(geoip:cn\)$ ]]; then 
           for i in "${ADDR[@]}"; do
             new_content+="${indent}- ${rule_prefix}(${i})\n"
           done
