@@ -38,6 +38,8 @@ create_directory() {
     mkdir -p /home/hysteria && cd /home/hysteria
 }
 
+create_directory
+
 # 创建Hysteria的客户端配置信息
 create_proxy_config() {
     echo "创建Hysteria配置信息..."
@@ -45,6 +47,8 @@ create_proxy_config() {
 - {"name": "hysteria-IPv4","type": "hysteria2","server": "server_ipv4","port": server_port,"password": "server_password","sni": "server_domain","alpn": ["h3"],"up": 100,"down": 500}
 - {"name": "hysteria-IPv6","type": "hysteria2","server": "server_ipv6","port": server_port,"password": "server_password","sni": "server_domain","alpn": ["h3"],"up": 100,"down": 500}
 EOF
+
+create_proxy_config
 
     if [ ! -f "proxy.yaml" ]; then
         echo "错误: proxy.yaml 文件不存在！"
