@@ -256,9 +256,9 @@ configure_socks5() {
     s/#  - name: my_socks5/  - name: my_socks5/; \
     s/#    type: socks5/    type: socks5/; \
     s/#    socks5:/    socks5:/; \
-    s/#      addr:/      addr: '$socks5_addr':'$socks5_port'/; \
-    s/#      username:/      username: '$socks5_user'/; \
-    s/#      password:/      password: '$socks5_pass'/ \
+    s/#      addr:/      addr: '"$socks5_addr"':'"$socks5_port"'/; \
+    s/#      username:/      username: '"$socks5_user"'/; \
+    s/#      password:/      password: '"$socks5_pass"'/ \
   ' config.yaml
 }
 
@@ -278,13 +278,14 @@ if [ "$modify_routing" = "y" ] || [ "$modify_routing" = "Y" ]; then
       read -p "输入需要分流的域名或数据集，使用GeoIP/GeoSite，用逗号分隔: " domains
       IFS=',' read -ra ADDR <<< "$domains"
 
-      # 找到 - reject(geoip:cn) 行号
-      reject_line=$(sed -n '/^ *- reject(geoip:cn)/=' config.yaml)
+      # 使用 awk 找到 - reject(geoip:cn) 行的缩进
+      indent=$(awk '/^ *- reject\(geoip:cn\)/ {print $1}' config.yaml)
 
       # 在 - reject(geoip:cn) 行后插入新的分流规则
+      reject_line=$(sed -n '/^ *- reject(geoip:cn)/=' config.yaml)
       insert_line=$((reject_line + 1))
       for i in "${ADDR[@]}"; do
-        sed -i "${insert_line}i    - ${rule_prefix}($i)" config.yaml
+        sed -i "${insert_line}i${indent}    - ${rule_prefix}($i)" config.yaml
         insert_line=$((insert_line + 1))
       done
     fi
@@ -292,6 +293,8 @@ if [ "$modify_routing" = "y" ] || [ "$modify_routing" = "Y" ]; then
 
   if [ "$ip_priority" = "A" ] || [ "$ip_priority" = "a" ]; then
     # IPv4优先
+    sed -i 's/\bdefault\b/v4_first/g' config.yaml
+    
     echo "IPv6分流"
     add_routing_rules "v6_first"
 
@@ -306,12 +309,8 @@ if [ "$modify_routing" = "y" ] || [ "$modify_routing" = "Y" ]; then
     fi
   
   elif [ "$ip_priority" = "B" ] || [ "$ip_priority" = "b" ]; then
-    sed -i '/^ *- name: v4_first/{
-      :a
-      N
-      /^\ *- name: v6_first\n *- type: direct\n *- direct:\n *- mode: 64$/!ba
-      s/\(.*\)\n\([^]*\)/\2\n\1/
-    }' config.yaml
+    # IPv6优先
+    sed -i 's/\bdefault\b/v6_first/g' config.yaml
   
     echo "IPv4分流"
     add_routing_rules "v4_first"
