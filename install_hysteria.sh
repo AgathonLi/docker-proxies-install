@@ -43,46 +43,45 @@ cat > proxy.yaml <<EOF
 - {"name": "hysteria-IPv6","type": "hysteria2","server": "server_ipv6","port": server_port,"password": "server_password","sni": "server_domain","alpn": ["h3"],"up": 100,"down": 500}
 EOF
 
-    if [ ! -f "proxy.yaml" ]; then
-        echo "错误: proxy.yaml 文件不存在！"
-        exit 1
+if [ ! -f "proxy.yaml" ]; then
+    echo "错误: proxy.yaml 文件不存在！"
+    exit 1
+fi
+
+# 自动检测服务器的IPv4地址和IPv6地址,最多重试三次
+echo "自动检测服务器的IPv4地址和IPv6地址..."
+retry_times=3
+for i in $(seq $retry_times); do
+    ipv4_address=$(curl -s http://ipv4.icanhazip.com)
+    if [ $? -eq 0 ]; then
+        break
     fi
+    echo "获取 IPv4 地址失败, 进行第 ${i} 次重试..."
+    sleep 1
+done
 
-    # 自动检测服务器的IPv4地址和IPv6地址,最多重试三次
-    echo "自动检测服务器的IPv4地址和IPv6地址..."
-    retry_times=3
-    for i in $(seq $retry_times); do
-        ipv4_address=$(curl -s http://ipv4.icanhazip.com)
-        if [ $? -eq 0 ]; then
-            break
-        fi
-        echo "获取 IPv4 地址失败, 进行第 ${i} 次重试..."
-        sleep 1
-    done
+if [ $i -eq $retry_times ]; then
+    echo "获取 IPv4 地址失败, 超过最大重试次数" >&2
+    exit 1
+fi
 
-    if [ $i -eq $retry_times ]; then
-        echo "获取 IPv4 地址失败, 超过最大重试次数" >&2
-        exit 1
+for i in $(seq $retry_times); do
+    ipv6_address=$(curl -s http://ipv6.icanhazip.com)
+    if [ $? -eq 0 ]; then
+        break
     fi
+    echo "获取 IPv6 地址失败, 进行第 ${i} 次重试..."
+    sleep 1
+done
 
-    for i in $(seq $retry_times); do
-        ipv6_address=$(curl -s http://ipv6.icanhazip.com)
-        if [ $? -eq 0 ]; then
-            break
-        fi
-        echo "获取 IPv6 地址失败, 进行第 ${i} 次重试..."
-        sleep 1
-    done
-
-    if [ $i -eq $retry_times ]; then
-        echo "获取 IPv6 地址失败, 超过最大重试次数" >&2
-        exit 1
-    fi
+if [ $i -eq $retry_times ]; then
+    echo "获取 IPv6 地址失败, 超过最大重试次数" >&2
+    exit 1
+fi
     
-    # 替换 proxy.yaml 中的服务器地址
-    sed -i "s/server_ipv4/$ipv4_address/" proxy.yaml
-    sed -i "s/server_ipv6/$ipv6_address/" proxy.yaml
-}
+# 替换 proxy.yaml 中的服务器地址
+sed -i "s/server_ipv4/$ipv4_address/" proxy.yaml
+sed -i "s/server_ipv6/$ipv6_address/" proxy.yaml
 
 # 创建hysteria配置文件
 cat > config.yaml <<EOF
