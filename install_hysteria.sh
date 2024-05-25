@@ -130,9 +130,9 @@ EOF
 
 # 提示输入端口
 while true; do
-  read -p "请输入端口 (1-65535，回车则随机选择1000-60000之间的端口): " port
+  read -p "请输入端口 (1-65535，回车则随机选择10000-59000之间的端口): " port
   if [ -z "$port" ]; then
-    port=$((RANDOM % 59000 + 1000))
+    port=$((RANDOM % 59000 + 10000))
   fi
   if ! nc -z -w 1 localhost "$port" &> /dev/null; then
     break
