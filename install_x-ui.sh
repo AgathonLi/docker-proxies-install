@@ -106,3 +106,5 @@ generate_access_address() {
         echo "获取IP地址失败，请检查网络连接"
     fi
 }
+
+generate_access_address
