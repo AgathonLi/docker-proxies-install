@@ -74,6 +74,7 @@ generate_access_address() {
 
     if [ $i -eq $retry_times ]; then
         echo "获取 IPv4 地址失败, 超过最大重试次数" >&2
+        ipv4_address=""
         exit 1
     fi
 
@@ -88,9 +89,20 @@ generate_access_address() {
 
     if [ $i -eq $retry_times ]; then
         echo "获取 IPv6 地址失败, 超过最大重试次数" >&2
+        ipv6_address=""
         exit 1
     fi
 
-    echo "x-ui安装完成，IPv4访问地址：http://$ipv4_address:2053"
-    echo "x-ui安装完成，IPv6访问地址：http://[$ipv6_address]:2053"
+    # 只输出有效的地址
+    if [ -n "$ipv4_address" ]; then
+        echo "x-ui安装完成，IPv4访问地址：http://$ipv4_address:2053"
+    fi
+    if [ -n "$ipv6_address" ]; then
+        echo "x-ui安装完成，IPv6访问地址：http://[$ipv6_address]:2053"
+    fi
+    
+    # 如果都没有获取到地址
+    if [ -z "$ipv4_address" ] && [ -z "$ipv6_address" ]; then
+        echo "获取IP地址失败，请检查网络连接"
+    fi
 }
