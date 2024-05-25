@@ -91,7 +91,6 @@ acme:
   domains:
     - your.domain.net
   email: your@email.com
-  ca: letsencrypt
 
 #tls:
 #  cert: 
