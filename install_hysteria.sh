@@ -276,15 +276,14 @@ if [ "$modify_routing" = "y" ] || [ "$modify_routing" = "Y" ]; then
       read -p "输入需要分流的域名或数据集，使用GeoIP/GeoSite，用逗号分隔: " domains
       IFS=',' read -ra ADDR <<< "$domains"
 
-      # 使用 awk 找到 - reject(geoip:cn) 行的缩进
-      indent=$(awk '/^ *- reject\(geoip:cn\)/ {print gensub(/[^ ].*/, "", 1)}' config.yaml)
+      # 设置缩进为4个空格
+      indent="    " 
 
       # 在 - reject(geoip:cn) 行后插入新的分流规则
       reject_line=$(sed -n '/^ *- reject(geoip:cn)/=' config.yaml)
       insert_line=$((reject_line + 1))
       for i in "${ADDR[@]}"; do
-        # 在这里插入空格和 -
-        sed -i "${insert_line}i${indent}  - ${rule_prefix} ($i)" config.yaml  
+        sed -i "${insert_line}i${indent}- ${rule_prefix}($i)" config.yaml
         insert_line=$((insert_line + 1))
       done
     fi
