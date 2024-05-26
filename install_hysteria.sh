@@ -89,6 +89,11 @@ install_docker
 
 install_docker_compose
 
+# 生成空白的证书和密钥文件
+mkdir -p /home/acme && cd /home/acme
+touch cert.crt
+touch private.key
+
 # 创建Hysteria目录
 echo "创建并进入hysteria目录..."
 mkdir -p /home/hysteria && cd /home/hysteria
@@ -252,7 +257,7 @@ if [ "$cert_method" = "B" ] || [ "$cert_method" = "b" ]; then
     if [[ -f "$tls_cert_path" && -r "$tls_cert_path" ]]; then
       # 使用变量定义目标路径
       target_cert_path="/home/acme/cert.crt"
-      if cp "$tls_cert_path" "$target_cert_path"; then
+      if cp -f "$tls_cert_path" "$target_cert_path"; then
         echo "证书已成功复制到 $target_cert_path"
         break
       else
@@ -269,7 +274,7 @@ if [ "$cert_method" = "B" ] || [ "$cert_method" = "b" ]; then
     if [[ -f "$tls_key_path" && -r "$tls_key_path" ]]; then
       # 使用变量定义目标路径
       target_key_path="/home/acme/private.key"
-      if cp "$tls_key_path" "$target_key_path"; then
+      if cp -f "$tls_key_path" "$target_key_path"; then
         echo "证书已成功复制到 $target_key_path"
         break
       else
