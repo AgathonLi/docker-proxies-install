@@ -238,12 +238,7 @@ read -p "选择 (A/B): " cert_method
 
 if [ "$cert_method" = "B" ] || [ "$cert_method" = "b" ]; then
   # 注释acme部分
-  sed -i "s/^acme:/#acme:/" config.yaml
-  sed -i "s/^  domains:/#  domains:/" config.yaml
-  sed -i "s/^    - your.domain.net/#    - your.domain.net/" config.yaml
-  sed -i "s/^  email:/#  email:/" config.yaml
-  sed -i "s/^  ca:/#  ca:/" config.yaml
-  sed -i "s/^  dir:/#  dir:/" config.yaml
+  sed -i '/^ *acme:/,/^ *email:/s/^/#/' config.yaml
   
   # 取消tls部分注释
   sed -i "s/#tls:/tls:/" config.yaml
