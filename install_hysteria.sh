@@ -150,8 +150,8 @@ acme:
   email: your@email.com
 
 #tls:
-#  cert: 
-#  key: 
+#  cert: /acme/cert.crt
+#  key: /acme/private.key
 
 auth:
   type: password
@@ -247,22 +247,36 @@ if [ "$cert_method" = "B" ] || [ "$cert_method" = "b" ]; then
   
   # 设定证书路径
   while true; do
-    read -p "请输入TLS证书的路径 (cert): " cert_path
-    if [ -f "$cert_path" ]; then
-      sed -i "s|cert:|cert: $cert_path|" config.yaml
-      break
+    read -p "请输入TLS证书的路径 (cert): " tls_cert_path
+    # 检查文件是否存在并且是常规文件
+    if [[ -f "$tls_cert_path" && -r "$tls_cert_path" ]]; then
+      # 使用变量定义目标路径
+      target_cert_path="/home/acme/cert.crt"
+      if cp "$tls_cert_path" "$target_cert_path"; then
+        echo "证书已成功复制到 $target_cert_path"
+        break
+      else
+        echo "无法复制证书，请检查权限。"
+      fi
     else
-      echo "证书路径不存在，请重新输入。"
+      echo "证书路径不存在或不可读，请重新输入。"
     fi
   done
-  
+
   while true; do
-    read -p "请输入TLS私钥的路径 (key): " key_path
-    if [ -f "$key_path" ]; then
-      sed -i "s|key:|key: $key_path|" config.yaml
-      break
+    read -p "请输入TLS证书的路径 (cert): " tls_key_path
+    # 检查文件是否存在并且是常规文件
+    if [[ -f "$tls_key_path" && -r "$tls_key_path" ]]; then
+      # 使用变量定义目标路径
+      target_key_path="/home/acme/private.key"
+      if cp "$tls_key_path" "$target_key_path"; then
+        echo "证书已成功复制到 $target_key_path"
+        break
+      else
+        echo "无法复制证书，请检查权限。"
+      fi
     else
-      echo "私钥路径不存在，请重新输入。"
+      echo "证书路径不存在或不可读，请重新输入。"
     fi
   done
 else
