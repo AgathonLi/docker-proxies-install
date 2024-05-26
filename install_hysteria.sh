@@ -32,6 +32,8 @@ install_docker() {
   echo "Docker 和 Docker Compose 已安装"
 }
 
+install_docker
+
 # 创建Hysteria目录
 echo "创建并进入hysteria目录..."
 mkdir -p /home/hysteria && cd /home/hysteria
