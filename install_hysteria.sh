@@ -11,7 +11,6 @@ install_docker() {
     if [ "$distro" == "debian" ] || [ "$distro" == "ubuntu" ]; then
       echo "检测到 Debian/Ubuntu 系统，安装 Docker..."
       curl -fsSL https://get.docker.com | sudo bash -s docker
-      sudo apt install -y docker-compose
     elif [ "$distro" == "alpine" ]; then
       echo "检测到 Alpine 系统，安装 Docker..."
       sudo apk add --no-cache docker docker-compose
