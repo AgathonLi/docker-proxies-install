@@ -90,7 +90,7 @@ install_docker
 install_docker_compose
 
 # Create x-ui directory
-mkdir -p /home/x-ui/db /home/x-ui/cert
+mkdir -p /home/x-ui
 
 # Create docker-compose.yaml file
 cat << EOF > /home/x-ui/docker-compose.yaml
@@ -103,7 +103,7 @@ services:
     volumes:
       - /home/x-ui/db:/etc/x-ui/
       - /home/x-ui/cert:/root/cert/
-      - /home/acme:/acme/
+      - /home/x-ui/acme:/acme/
     network_mode: host
     restart: unless-stopped
     container_name: 3x-ui
