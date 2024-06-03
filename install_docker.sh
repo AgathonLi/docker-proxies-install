@@ -6,7 +6,7 @@ install_docker() {
     echo "Docker 未安装，开始安装..."
 
     # 获取系统发行版
-    distro=$(grep -oP '(?<=^ID=).+' /etc/os-release | tr -d '"')
+    distro=$(grep '^ID=' /etc/os-release | cut -d'=' -f2 | tr -d '"')
 
     if [ "$distro" == "debian" ] || [ "$distro" == "ubuntu" ]; then
       echo "检测到 Debian/Ubuntu 系统，安装 Docker..."
