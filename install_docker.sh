@@ -42,17 +42,7 @@ install_docker_compose() {
     echo "Docker Compose 未安装，开始安装..."
 
     # 获取系统发行版和架构
-    distro=$(grep -oP '(?<=^ID=).+' /etc/os-release | tr -d '"')
-    arch=$(uname -m)
-
-    if [ "$arch" == "x86_64" ]; then
-      compose_arch="x86_64"
-    elif [ "$arch" == "aarch64" ]; then
-      compose_arch="aarch64"
-    else
-      echo "不支持的架构: $arch，脚本退出"
-      exit 1
-    fi
+    distro=$(grep '^ID=' /etc/os-release | cut -d'=' -f2 | tr -d '"')
 
     if [ "$distro" == "debian" ] || [ "$distro" == "ubuntu" ]; then
       echo "检测到 Debian/Ubuntu 系统，安装 Docker Compose..."
