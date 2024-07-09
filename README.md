@@ -10,3 +10,7 @@ bash <(wget -qO- https://raw.githubusercontent.com/AgathonLi/docker-proxies-inst
 ```
 bash <(wget -qO- https://raw.githubusercontent.com/AgathonLi/docker-proxies-install/main/install_hysteria.sh)
 ```
+## Alpine BBR
+```
+bash <(wget -qO- https://raw.githubusercontent.com/AgathonLi/docker-proxies-install/main/alpine_bbr.sh)
+```
