@@ -296,8 +296,6 @@ services:
       - /home/acme:/acme
       - /home/hysteria/config.yaml:/etc/hysteria.yaml
     command: ["server", "-c", "/etc/hysteria.yaml"]
-volumes:
-  acme:
 EOF
 
 # 运行docker compose
